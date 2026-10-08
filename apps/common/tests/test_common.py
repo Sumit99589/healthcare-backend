@@ -17,7 +17,17 @@ def test_health_check(api_client):
     response = api_client.get("/api/health/")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "ok"}
+    body = response.json()
+    assert body["status"] == "ok"
+    assert body["database"] == "ok"
+    assert body["database_latency_ms"] >= 0
+
+
+def test_root_redirects_to_api_docs(api_client):
+    response = api_client.get("/")
+
+    assert response.status_code == 302
+    assert response["Location"] == "/api/docs/"
 
 
 def test_unknown_url_returns_json_404(api_client, settings):

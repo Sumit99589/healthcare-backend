@@ -1,3 +1,5 @@
+import time
+
 from django.db import connection
 from django.http import JsonResponse
 from drf_spectacular.utils import extend_schema, inline_serializer
@@ -10,7 +12,7 @@ from .exceptions import error_body
 
 
 class HealthCheckView(APIView):
-    """Liveness / readiness probe: reports whether the database is reachable."""
+    """Liveness / readiness probe: reports whether the database is reachable and how fast."""
 
     permission_classes = [AllowAny]
     authentication_classes = []
@@ -19,10 +21,16 @@ class HealthCheckView(APIView):
     @extend_schema(
         tags=["Health"],
         responses=inline_serializer(
-            "HealthCheck", {"status": serializers.CharField(), "database": serializers.CharField()}
+            "HealthCheck",
+            {
+                "status": serializers.CharField(),
+                "database": serializers.CharField(),
+                "database_latency_ms": serializers.FloatField(),
+            },
         ),
     )
     def get(self, request):
+        started = time.perf_counter()
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
@@ -31,7 +39,8 @@ class HealthCheckView(APIView):
                 {"status": "unavailable", "database": "unreachable"},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-        return Response({"status": "ok", "database": "ok"})
+        latency_ms = round((time.perf_counter() - started) * 1000, 1)
+        return Response({"status": "ok", "database": "ok", "database_latency_ms": latency_ms})
 
 
 def json_not_found(request, exception=None):

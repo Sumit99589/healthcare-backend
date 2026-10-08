@@ -22,10 +22,30 @@ patients.
 - **JWT done properly**: refresh-token rotation and blacklisting, a logout endpoint that
   revokes tokens, rate-limited auth endpoints.
 - **Interactive API docs** (Swagger UI and ReDoc), generated from the code.
-- **116 automated tests** (96% coverage) run against PostgreSQL, plus a **Postman
+- **117 automated tests** (96% coverage) run against PostgreSQL, plus a **Postman
   collection** with 42 assertions that walks through every endpoint.
 - **GitHub Actions CI** (lint, migrations check, schema validation, tests) and a
   `seed_demo` command for instant sample data.
+
+---
+
+## Live demo
+
+| | |
+| --- | --- |
+| **Interactive console** | <https://sumit-healthcare.vercel.app> |
+| API base URL | <https://sumit-healthcare-api.vercel.app/api/> |
+| Swagger UI | <https://sumit-healthcare-api.vercel.app/api/docs/> |
+| Health check | <https://sumit-healthcare-api.vercel.app/api/health/> |
+
+The console is a separate frontend that calls this API straight from the browser. Start an
+instant sandbox and it registers a fresh account, adds sample patients and assigns doctors.
+Every request and the server's exact response are listed next to the screen as you use it.
+The landing page also runs a live isolation test: two throwaway accounts try to read each
+other's patients and get `404`.
+
+The API runs on Vercel's Python runtime with a Neon PostgreSQL database
+([details](#deployment)).
 
 ---
 
@@ -39,6 +59,7 @@ patients.
 - [Project structure](#project-structure)
 - [Testing](#testing)
 - [Configuration](#configuration)
+- [Deployment](#deployment)
 
 ---
 
@@ -90,9 +111,9 @@ Protected endpoints need `Authorization: Bearer <access token>`.
 
 | Method | Endpoint | Auth | Description |
 | --- | --- | --- | --- |
-| `POST` | `/api/auth/register/` | – | Register with `name`, `email`, `password`. Returns the user and a JWT pair |
-| `POST` | `/api/auth/login/` | – | Log in with `email`, `password`. Returns the user and a JWT pair |
-| `POST` | `/api/auth/token/refresh/` | – | Exchange a refresh token for a new access + refresh token (the old one is revoked) |
+| `POST` | `/api/auth/register/` | No | Register with `name`, `email`, `password`. Returns the user and a JWT pair |
+| `POST` | `/api/auth/login/` | No | Log in with `email`, `password`. Returns the user and a JWT pair |
+| `POST` | `/api/auth/token/refresh/` | No | Exchange a refresh token for a new access + refresh token (the old one is revoked) |
 | `POST` | `/api/auth/logout/` | ✅ | Revoke a refresh token |
 | `GET` | `/api/auth/me/` | ✅ | The logged-in user's profile |
 
@@ -402,7 +423,7 @@ Each app follows the same layout: `models` → `serializers` (validation) → `v
 ### Automated tests
 
 ```bash
-pytest                       # 116 tests against PostgreSQL
+pytest                       # 117 tests against PostgreSQL
 pytest --cov                 # with a coverage report (96%)
 ruff check . && ruff format --check .
 ```
@@ -443,14 +464,42 @@ Set in `.env` (see [`.env.example`](.env.example)) or as real environment variab
 | `DJANGO_SECRET_KEY` | **required** | Django secret key |
 | `DJANGO_DEBUG` | `False` | Debug mode (also enables the browsable API) |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated hosts |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | – | For the admin behind a proxy |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | empty | For the admin behind a proxy |
+| `DATABASE_URL` | empty | Full PostgreSQL URL. When set it replaces the `DB_*` values below |
 | `DB_NAME` / `DB_USER` | `healthcare` | PostgreSQL database / user |
 | `DB_PASSWORD` | **required** | PostgreSQL password |
 | `DB_HOST` / `DB_PORT` | `localhost` / `5432` | PostgreSQL location |
+| `DB_CONN_MAX_AGE` | `60` | Seconds to keep a database connection open |
+| `DB_DISABLE_SERVER_SIDE_CURSORS` | `False` | Set to `True` behind a transaction-mode pooler such as PgBouncer or Neon's pooled URL |
 | `JWT_SIGNING_KEY` | `DJANGO_SECRET_KEY` | Key used to sign tokens |
 | `JWT_ACCESS_TOKEN_MINUTES` | `30` | Access token lifetime |
 | `JWT_REFRESH_TOKEN_DAYS` | `7` | Refresh token lifetime |
 | `THROTTLE_AUTH` | `10/min` | Rate limit for register / login / refresh |
 | `THROTTLE_ANON` / `THROTTLE_USER` | `60/min` / `600/min` | General rate limits |
-| `CORS_ALLOWED_ORIGINS` | – | Front-end origins allowed to call the API |
+| `CORS_ALLOWED_ORIGINS` | empty | Front-end origins allowed to call the API |
 | `LOG_LEVEL` | `INFO` | Root log level |
+
+---
+
+## Deployment
+
+The live API is deployed to [Vercel](https://vercel.com) using its built-in Django support:
+Vercel finds `manage.py`, reads `WSGI_APPLICATION`, runs `collectstatic` and serves the app
+as a serverless function. The database is a [Neon](https://neon.tech) PostgreSQL instance in
+the same region.
+
+Production settings are environment variables on the Vercel project, never files in the
+repository:
+
+| Variable | Production value |
+| --- | --- |
+| `DATABASE_URL` | Neon's pooled connection URL (added by the Neon integration) |
+| `DJANGO_SECRET_KEY` | A long random string |
+| `DJANGO_DEBUG` | `False` |
+| `DJANGO_ALLOWED_HOSTS` | The API's domain |
+| `CORS_ALLOWED_ORIGINS` | The console's origin |
+| `DB_DISABLE_SERVER_SIDE_CURSORS` | `True` (Neon's pooler runs in transaction mode) |
+
+Migrations are applied before a release with `python manage.py migrate`, pointing
+`DATABASE_URL` at Neon's direct (unpooled) URL. `.vercelignore` keeps local files such as
+`.env` and the virtualenv out of the upload.

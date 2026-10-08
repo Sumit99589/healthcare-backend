@@ -1,0 +1,11 @@
+.venv
+.env
+.env.*
+!.env.example
+.git
+.pytest_cache
+.ruff_cache
+.coverage
+__pycache__
+staticfiles
+postman

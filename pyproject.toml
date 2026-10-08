@@ -1,8 +1,20 @@
 [project]
 name = "healthcare-backend"
 version = "1.0.0"
-description = "Healthcare backend: Django REST Framework + PostgreSQL + JWT"
+description = "Healthcare backend API: Django REST Framework, PostgreSQL and JWT"
 requires-python = ">=3.12"
+# Keep in sync with requirements.txt
+dependencies = [
+    "Django==6.1.2",
+    "djangorestframework==3.18.3",
+    "djangorestframework-simplejwt==5.5.1",
+    "psycopg[binary]==3.3.6",
+    "django-environ==0.14.0",
+    "django-filter==26.2",
+    "django-cors-headers==4.9.0",
+    "drf-spectacular==0.30.0",
+    "whitenoise==6.12.0",
+]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"

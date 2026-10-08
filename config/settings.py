@@ -80,19 +80,29 @@ TEMPLATES = [
 # --------------------------------------------------------------------------------------
 # Database (PostgreSQL only)
 # --------------------------------------------------------------------------------------
-DATABASES = {
-    "default": {
+# Either a single DATABASE_URL (what hosted providers such as Neon give you) or the
+# individual DB_* variables.
+if env.str("DATABASE_URL", default=""):
+    _database = env.db_url("DATABASE_URL")
+else:
+    _database = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": env.str("DB_NAME", default="healthcare"),
         "USER": env.str("DB_USER", default="healthcare"),
         "PASSWORD": env.str("DB_PASSWORD"),
         "HOST": env.str("DB_HOST", default="localhost"),
         "PORT": env.int("DB_PORT", default=5432),
+    }
+_database.update(
+    {
         "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=60),
         "CONN_HEALTH_CHECKS": True,
         "ATOMIC_REQUESTS": True,
+        # Needed behind a transaction-mode connection pooler (PgBouncer, Neon's pooler).
+        "DISABLE_SERVER_SIDE_CURSORS": env.bool("DB_DISABLE_SERVER_SIDE_CURSORS", default=False),
     }
-}
+)
+DATABASES = {"default": _database}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
