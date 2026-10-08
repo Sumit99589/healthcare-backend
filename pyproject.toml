@@ -1,0 +1,35 @@
+[project]
+name = "healthcare-backend"
+version = "1.0.0"
+description = "Healthcare backend: Django REST Framework + PostgreSQL + JWT"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers --reuse-db"
+filterwarnings = [
+    "error::RuntimeWarning",
+    # WhiteNoise warns that STATIC_ROOT is missing until collectstatic has run.
+    "ignore:No directory at:UserWarning",
+]
+
+[tool.coverage.run]
+source = ["apps", "config"]
+omit = ["*/migrations/*", "*/tests/*", "config/asgi.py", "config/wsgi.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "DJ", "SIM", "C4", "RUF"]
+ignore = ["RUF012"]  # mutable class attributes are idiomatic in Django/DRF
+
+[tool.ruff.lint.isort]
+known-first-party = ["apps", "config"]
